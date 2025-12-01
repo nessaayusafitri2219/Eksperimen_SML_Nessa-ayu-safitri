@@ -1,0 +1,12 @@
+name: walmart-env
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - mlflow
+    - scikit-learn
+    - pandas
+    - dagshub
+    - matplotlib
