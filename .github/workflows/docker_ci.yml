@@ -26,7 +26,7 @@ jobs:
 
       # Instalasi versi stabil & downgrade urllib3 untuk menghindari error SSL
       - name: Install Dependencies
-        run: pip install mlflow==2.14.1 dagshub pandas scikit-learn --quiet
+        run: pip install mlflow==2.7 dagshub pandas scikit-learn --quiet
 
       # 1. Jalankan Training (Akan mengupload model & membuat run_id.txt)
       - name: Train & Get Run ID
