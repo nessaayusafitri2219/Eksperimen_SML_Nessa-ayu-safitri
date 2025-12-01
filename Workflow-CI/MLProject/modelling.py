@@ -27,7 +27,7 @@ except Exception as e:
 mlflow.set_experiment("Walmart_Sales_CI_Production")
 
 # --- 3. LOAD DATA ---
-filename = 'preprocessing/Walmart_Sales_preprocessing.csv'
+filename = 'peprocessing/Walmart_Sales_preprocessing.csv'
 if os.path.exists(filename):
     data_path = filename
 elif os.path.exists(f"../{filename}"):
