@@ -25,7 +25,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install MLflow & Dependencies
-        run: pip install mlflow dagshub pandas scikit-learn
+        run: pip install mlflow==2.7 dagshub pandas scikit-learn
 
       - name: Train & Get Run ID
         id: train
