@@ -1,0 +1,35 @@
+name: Data Preprocessing Pipeline
+
+on:
+  push:
+    paths:
+      - 'Walmart_Sales_raw.csv'
+      - 'preprocessing/automate_Nessa-ayu-safitri.py'
+  workflow_dispatch:
+
+jobs:
+  preprocess:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install pandas
+
+      - name: Run Preprocessing Script
+        run: python preprocessing/automate_Nessa-ayu-safitri.py
+
+      - name: Commit and Push Clean Data
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Auto-process: Update Walmart_Sales_preprocessing.csv"
+          file_pattern: preprocessing/Walmart_Sales_preprocessing.csv
