@@ -22,7 +22,7 @@ mlflow.set_experiment("Walmart_Sales_CI_Production")
 
 # --- 2. LOAD DATA ---
 # Script akan mencari file csv di direktori yang sama atau satu level di atasnya
-filename = 'Walmart_Sales_preprocessing.csv'
+filename = 'preprocessing/Walmart_Sales_preprocessing.csv'
 if os.path.exists(filename):
     data_path = filename
 elif os.path.exists(f"../{filename}"):
