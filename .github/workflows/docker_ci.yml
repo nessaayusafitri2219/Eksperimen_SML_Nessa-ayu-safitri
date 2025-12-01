@@ -24,22 +24,22 @@ jobs:
         with:
           python-version: '3.9'
 
-      # Instalasi versi stabil & downgrade urllib3 untuk menghindari error SSL
+      # Gunakan versi stabil
       - name: Install Dependencies
         run: pip install mlflow==2.14.1 dagshub pandas scikit-learn
 
-      # 1. Jalankan Training (Akan mengupload model & membuat run_id.txt)
-      - name: Train & Get Run ID
-        run: |
-          python Workflow-CI/MLProject/modelling.py
-          
-          # Cek keberadaan file
-          if [ -f run_id.txt ]; then
-             echo "Run ID ditemukan: $(cat run_id.txt)"
-          else
-             echo "Error: run_id.txt GAGAL dibuat."
-             exit 1
-          fi
+      # 1. Train Model & Simpan ke Folder Lokal 'model_output'
+      - name: Train Model
+        run: python Workflow-CI/MLProject/modelling.py
+
+      # 2. (Opsional) Simpan Model ke GitHub Artifacts
+      # Ini akan menyimpan file model di tab "Actions" GitHub Anda (Bukan di Repo/Code)
+      # Sangat aman dan tidak membuat repo bengkak.
+      - name: Upload Model to GitHub Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: trained-model
+          path: model_output/
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -47,17 +47,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 2. Build Docker Menggunakan Run ID (Download dari DagsHub)
+      # 3. Build Docker dari Folder Lokal
       - name: Build and Push Docker
         run: |
-          RUN_ID=$(cat run_id.txt)
           IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/walmart-model"
+          echo "Building Docker Image dari folder lokal..."
           
-          echo "Building Docker Image dari DagsHub Run ID: $RUN_ID"
-          
-          # Format URI: runs:/<run_id>/model
+          # PERHATIKAN: -m "model_output" merujuk ke folder lokal
+          # Bukan runs:/... lagi. Ini JAUH lebih cepat dan stabil.
           mlflow models build-docker \
-            -m "runs:/$RUN_ID/model" \
+            -m "model_output" \
             -n "$IMAGE_NAME:latest" \
             --enable-mlserver
           
