@@ -37,7 +37,7 @@ jobs:
       # 4. Install dependencies
       - name: Install dependencies
         # Menggunakan versi stabil untuk DagsHub & urllib3 lama untuk stabilitas koneksi
-        run: pip install mlflow==2.19.0 dagshub pandas scikit-learn
+        run: pip install mlflow==2.19.0 dagshub pandas scikit-learn --quiet
 
       # 5. Run MLflow project
       # Script ini HARUS menyimpan model ke folder lokal 'model_output'
