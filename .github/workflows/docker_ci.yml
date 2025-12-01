@@ -25,16 +25,21 @@ jobs:
           python-version: '3.9'
 
       - name: Install MLflow & Dependencies
-        run: pip install mlflow dagshub pandas scikit-learn matplotlib seaborn
+        run: pip install mlflow dagshub pandas scikit-learn
 
       - name: Train & Get Run ID
         id: train
         run: |
-          # Jalankan training untuk menghasilkan model di MLflow
-          python Membangun_model/modelling_tuning.py > output.txt
-          # Asumsi: Anda harus memodifikasi script python untuk print Run ID, 
-          # atau ambil Run ID terakhir dari MLflow secara manual untuk tugas ini.
-          # Untuk otomatisasi penuh, script python harus menulis RunID ke file.
+          # Jalankan script modelling khusus CI (yang ringan dan menyimpan run_id.txt)
+          python Workflow-CI/MLProject/modelling.py
+          
+          # Cek apakah file run_id.txt berhasil dibuat oleh script python
+          if [ -f run_id.txt ]; then
+            echo "Run ID ditemukan: $(cat run_id.txt)"
+          else
+            echo "Error: File run_id.txt tidak ditemukan. Pastikan script python menyimpannya."
+            exit 1
+          fi
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -42,12 +47,27 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step ini melakukan build docker image dari model MLflow
-      # Pastikan Run ID valid. Untuk tugas, seringkali siswa diminta 
-      # menunjukkan workflow ini valid secara sintaks.
-      - name: Build and Push Docker (Simulasi)
+      - name: Build and Push Docker
         run: |
-          echo "Building Docker Image..."
-          # Command asli (memerlukan Run ID spesifik):
-          # mlflow models build-docker -m "runs:/<RUN_ID>/model" -n "${{ secrets.DOCKER_USERNAME }}/walmart-model:latest" --enable-mlserver
-          # docker push "${{ secrets.DOCKER_USERNAME }}/walmart-model:latest"
+          # 1. Ambil Run ID dari file
+          RUN_ID=$(cat run_id.txt)
+          
+          # 2. Tentukan Nama Image (Format: username/repository)
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/walmart-model"
+          
+          echo "Building Docker Image untuk Run ID: $RUN_ID"
+          
+          # 3. Build Docker Image menggunakan MLflow
+          # --enable-mlserver: Mengaktifkan server inferensi siap pakai
+          mlflow models build-docker \
+            -m "runs:/$RUN_ID/model" \
+            -n "$IMAGE_NAME:latest" \
+            --enable-mlserver
+          
+          # 4. Push ke Docker Hub
+          echo "Pushing image to Docker Hub..."
+          docker push "$IMAGE_NAME:latest"
+          
+          # Opsional: Tag juga dengan Run ID agar punya history versi
+          docker tag "$IMAGE_NAME:latest" "$IMAGE_NAME:$RUN_ID"
+          docker push "$IMAGE_NAME:$RUN_ID"
