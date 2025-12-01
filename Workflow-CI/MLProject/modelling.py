@@ -14,7 +14,7 @@ os.environ["MLFLOW_HTTP_REQUEST_MAX_RETRIES"] = "5"  # Coba ulang hingga 5 kali
 os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] = "120"     # Tunggu respon hingga 120 detik
 os.environ["MLFLOW_GCS_DEFAULT_TIMEOUT"] = "120"     # Timeout untuk operasi artifact
 
-REPO_OWNER = "Nessa-ayu-safitri"
+REPO_OWNER = "nessaayusafitri2219"
 REPO_NAME = "Eksperimen_SML_Nessa-ayu-safitri"
 
 # --- 2. INIT DAGSHUB ---
