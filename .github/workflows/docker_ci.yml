@@ -1,4 +1,4 @@
-name: CI Build & Push Docker
+name: CI Pipeline GitHub Artifacts & Docker
 
 on:
   push:
@@ -13,53 +13,97 @@ env:
   DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
 
 jobs:
-  docker-build:
+  build-job:
     runs-on: ubuntu-latest
     steps:
+      # 1. Run actions/checkout@v3
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      # 2. Set up Python 3.12.7
+      - name: Set up Python 3.12.7
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.12.7'
 
-      # Instalasi versi stabil & downgrade urllib3 untuk menghindari error SSL
-      - name: Install Dependencies
-        run: pip install mlflow==2.7 dagshub pandas scikit-learn --quiet
-
-      # 1. Jalankan Training (Akan mengupload model & membuat run_id.txt)
-      - name: Train & Get Run ID
+      # 3. Check Env
+      - name: Check Env
         run: |
-          python Workflow-CI/MLProject/modelling.py
-          
-          # Cek keberadaan file
+          echo "Checking Environment..."
+          python --version
+          pip --version
+          ls -la
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        # Menggunakan versi stabil untuk DagsHub & urllib3 lama untuk stabilitas koneksi
+        run: pip install mlflow==2.14.1 urllib3==1.26.15 dagshub pandas scikit-learn
+
+      # 5. Run MLflow project
+      # Script ini HARUS menyimpan model ke folder lokal 'model_output'
+      - name: Run MLflow project
+        run: python Workflow-CI/MLProject/modelling.py
+
+      # 6. Get latest MLflow run_id
+      # Kita tetap ambil ID untuk penamaan file/tagging, meski build dari folder lokal
+      - name: Get latest MLflow run_id
+        id: get_run_id
+        run: |
           if [ -f run_id.txt ]; then
+             # Simpan ke Environment Variable GitHub agar bisa dipakai di step lain
+             echo "RUN_ID=$(cat run_id.txt)" >> $GITHUB_ENV
              echo "Run ID ditemukan: $(cat run_id.txt)"
           else
-             echo "Error: run_id.txt GAGAL dibuat."
+             echo "Error: run_id.txt tidak ditemukan."
              exit 1
           fi
 
-      - name: Login to Docker Hub
+      # 7. Install Python dependencies (Secondary)
+      # Langkah ini sebenarnya opsional jika sudah di step 4, tapi saya pertahankan sesuai request urutan Anda
+      - name: Install Python dependencies (Secondary)
+        run: pip install requests
+
+      # 8. Upload to GitHub Artifacts (PENGGANTI Google Drive)
+      # Menyimpan folder 'model_output' ke tab Actions di GitHub
+      - name: Upload to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-backup-${{ env.RUN_ID }}
+          path: model_output/
+          retention-days: 5
+
+      # 9. Build Docker Model
+      # Kita build dari folder LOKAL 'model_output' agar tidak perlu download dari internet (Anti Gagal)
+      - name: Build Docker Model
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/walmart-model"
+          # Simpan nama image ke env var agar bisa dipakai di step tagging/push
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          
+          echo "Building Docker Image dari folder lokal..."
+          mlflow models build-docker \
+            -m "model_output" \
+            -n "$IMAGE_NAME:latest" \
+            --enable-mlserver
+
+      # 10. Log in to Docker Hub
+      - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 2. Build Docker Menggunakan Run ID (Download dari DagsHub)
-      - name: Build and Push Docker
+      # 11. Tag Docker Image
+      # Menambahkan tag spesifik sesuai Run ID
+      - name: Tag Docker Image
         run: |
-          RUN_ID=$(cat run_id.txt)
-          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/walmart-model"
-          
-          echo "Building Docker Image dari DagsHub Run ID: $RUN_ID"
-          
-          # Format URI: runs:/<run_id>/model
-          mlflow models build-docker \
-            -m "runs:/$RUN_ID/model" \
-            -n "$IMAGE_NAME:latest" \
-            --enable-mlserver
-          
-          echo "Pushing to Docker Hub..."
-          docker push "$IMAGE_NAME:latest"
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}:${{ env.RUN_ID }}
+
+      # 12. Push Docker Image
+      # Push versi latest DAN versi spesifik Run ID
+      - name: Push Docker Image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:${{ env.RUN_ID }}
+
+      # Post actions (Cleanup, Login logout) berjalan otomatis
