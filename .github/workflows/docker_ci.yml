@@ -10,6 +10,7 @@ env:
   MLFLOW_TRACKING_URI: https://dagshub.com/nessaayusafitri2219/Eksperimen_SML_Nessa-ayu-safitri.mlflow
   MLFLOW_TRACKING_USERNAME: nessaayusafitri2219
   MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+  DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
 
 jobs:
   docker-build:
